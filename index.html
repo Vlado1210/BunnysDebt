@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Loading</title>
+  <title>Bunny’s Birthday</title>
   <style>
     * { box-sizing: border-box; }
 
@@ -14,8 +14,9 @@
       place-items: center;
       font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0f1115;
-      color: #fff;
+      color: #F9F5F0;
     }
+
 
     .card {
       width: min(680px, calc(100% - 40px));
@@ -28,7 +29,8 @@
       font-size: 13px;
       letter-spacing: .14em;
       text-transform: uppercase;
-      opacity: .55;
+      opacity: .95;
+      color: #E88294;
     }
 
     h1 {
@@ -43,15 +45,15 @@
       height: 28px;
       overflow: hidden;
       border-radius: 999px;
-      background: #252a33;
-      box-shadow: inset 0 1px 3px rgba(0,0,0,.35);
+      background: #F9F5F0;
+      box-shadow: inset 0 1px 3px rgba(216, 88, 88, 0.614);
     }
 
     .progress-bar {
       width: 0%;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, #fff, #bfc7d5);
+      background: linear-gradient(90deg, #E88294, #e8a5b1);
       transition: width 900ms cubic-bezier(.22, 1, .36, 1);
     }
 
@@ -69,6 +71,26 @@
       opacity: .65;
     }
 
+      .success-message {
+      display: none;
+      margin-top: 18px;
+      font-size: 18px;
+      line-height: 1.4;
+    }
+
+    .success-message strong {
+      display: block;
+      font-size: clamp(28px, 7vw, 48px);
+      line-height: 1;
+      margin-bottom: 10px;
+      color: #E88294;
+    }
+
+    .success-message span {
+      display: block;
+      opacity: .9;
+    }
+
     .updated {
       margin-top: 26px;
       font-size: 12px;
@@ -84,7 +106,8 @@
 
 <body>
   <main class="card">
-    <p class="eyebrow">Progress</p>
+    <img src="logo.jpg" width="50%" style="border-radius:  15px; margin-bottom: 30px;"></img>
+    <p class="eyebrow">Paying off my debt, one burger at a time  </p>
     <h1>Loading...</h1>
 
     <div class="progress-wrapper" aria-label="Progress">
@@ -92,7 +115,17 @@
     </div>
 
     <div id="progressValue" class="progress-value">0%</div>
-    <div id="message" class="message">Checking latest status...</div>
+     <!-- Normal message from Google Sheets -->
+    <div id="message" class="message">
+      Checking latest status...
+    </div>
+
+    <!-- Message shown when progress reaches 100% -->
+    <div id="successMessage" class="success-message">
+      <strong>WE FUCKING DID IT! 🎉</strong>
+      <span>Bunny’s Burgers is finally ours.</span>
+    </div>
+
     <div id="updated" class="updated"></div>
   </main>
 
@@ -112,7 +145,7 @@
      */
 
     const CONFIG = {
-      sheetId: "YOUR_GOOGLE_SHEET_ID",
+      sheetId: "2PACX-1vRHy8RNXWfkbAW7DR7Ct7Q0jneK1uv8EoOfIVyKI5c4SGe7EYDahuOVRjli0Sz8BUzIOECmTtqDSKCZ",
       gid: "0",
       refreshMs: 15000
     };
@@ -121,9 +154,10 @@
     const progressValue = document.getElementById("progressValue");
     const message = document.getElementById("message");
     const updated = document.getElementById("updated");
+    const successMessage = document.getElementById("successMessage");
 
     function sheetUrl() {
-      return `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${CONFIG.gid}&cachebust=${Date.now()}`;
+      return `https://docs.google.com/spreadsheets/d/e/${CONFIG.sheetId}/pub?gid=${CONFIG.gid}&single=true&output=csv&t=${Date.now()}`;
     }
 
     function parseCsvLine(line) {
@@ -183,8 +217,17 @@
 
         progressBar.style.width = `${safeProgress}%`;
         progressValue.textContent = `${safeProgress}%`;
-        message.textContent = text || "Loading...";
+        //message.textContent = text || "Loading...";
         message.classList.remove("error");
+
+        if (progress >= 100) {
+          message.style.display = "none";
+          successMessage.style.display = "block";
+        } else {
+          message.style.display = "block";
+          successMessage.style.display = "none";
+          message.textContent = text || "Loading...";
+        }
 
         updated.textContent =
           `Last checked: ${new Date().toLocaleTimeString()}`;
@@ -195,8 +238,13 @@
       }
     }
 
-    loadProgress();
-    setInterval(loadProgress, CONFIG.refreshMs);
+    async function startPolling() {
+      while (true) {
+        await loadProgress();
+        await new Promise(resolve => setTimeout(resolve, CONFIG.refreshMs));
+      }
+    }
+    startPolling();
   </script>
 </body>
 </html>
