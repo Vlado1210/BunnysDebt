@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loading</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1115;
+      color: #fff;
+    }
+
+    .card {
+      width: min(680px, calc(100% - 40px));
+      text-align: center;
+      padding: 42px 32px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      font-size: 13px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      opacity: .55;
+    }
+
+    h1 {
+      margin: 0 0 28px;
+      font-size: clamp(32px, 7vw, 64px);
+      line-height: 1;
+      font-weight: 750;
+    }
+
+    .progress-wrapper {
+      position: relative;
+      height: 28px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #252a33;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,.35);
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #fff, #bfc7d5);
+      transition: width 900ms cubic-bezier(.22, 1, .36, 1);
+    }
+
+    .progress-value {
+      margin-top: 18px;
+      font-size: clamp(42px, 10vw, 80px);
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .message {
+      min-height: 24px;
+      margin-top: 14px;
+      font-size: 16px;
+      opacity: .65;
+    }
+
+    .updated {
+      margin-top: 26px;
+      font-size: 12px;
+      opacity: .35;
+    }
+
+    .error {
+      color: #ff8d8d;
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="card">
+    <p class="eyebrow">Progress</p>
+    <h1>Loading...</h1>
+
+    <div class="progress-wrapper" aria-label="Progress">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+
+    <div id="progressValue" class="progress-value">0%</div>
+    <div id="message" class="message">Checking latest status...</div>
+    <div id="updated" class="updated"></div>
+  </main>
+
+  <script>
+    /*
+     * ============================================================
+     * CONFIGURATION
+     * ============================================================
+     *
+     * Google Sheet:
+     *   A1 = progress
+     *   A2 = 73
+     *   B1 = message
+     *   B2 = Almost there!
+     *
+     * Publish the sheet to the web, then put its ID and GID below.
+     */
+
+    const CONFIG = {
+      sheetId: "YOUR_GOOGLE_SHEET_ID",
+      gid: "0",
+      refreshMs: 15000
+    };
+
+    const progressBar = document.getElementById("progressBar");
+    const progressValue = document.getElementById("progressValue");
+    const message = document.getElementById("message");
+    const updated = document.getElementById("updated");
+
+    function sheetUrl() {
+      return `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${CONFIG.gid}&cachebust=${Date.now()}`;
+    }
+
+    function parseCsvLine(line) {
+      // Simple CSV parser supporting quoted cells.
+      const result = [];
+      let current = "";
+      let quoted = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const next = line[i + 1];
+
+        if (char === '"' && quoted && next === '"') {
+          current += '"';
+          i++;
+        } else if (char === '"') {
+          quoted = !quoted;
+        } else if (char === "," && !quoted) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      result.push(current.trim());
+      return result;
+    }
+
+    async function loadProgress() {
+      try {
+        if (CONFIG.sheetId === "YOUR_GOOGLE_SHEET_ID") {
+          throw new Error("Add your Google Sheet ID to CONFIG.sheetId.");
+        }
+
+        const response = await fetch(sheetUrl(), { cache: "no-store" });
+
+        if (!response.ok) {
+          throw new Error(`Google Sheets returned HTTP ${response.status}.`);
+        }
+
+        const csv = await response.text();
+        const rows = csv
+          .trim()
+          .split(/\r?\n/)
+          .map(parseCsvLine);
+
+        // A2 = progress, B2 = optional message.
+        const progress = Number(rows[1]?.[0]);
+        const text = rows[1]?.[1] || "";
+
+        if (!Number.isFinite(progress)) {
+          throw new Error("Cell A2 must contain a number.");
+        }
+
+        const safeProgress = Math.max(0, Math.min(100, progress));
+
+        progressBar.style.width = `${safeProgress}%`;
+        progressValue.textContent = `${safeProgress}%`;
+        message.textContent = text || "Loading...";
+        message.classList.remove("error");
+
+        updated.textContent =
+          `Last checked: ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        console.error(error);
+        message.textContent = error.message;
+        message.classList.add("error");
+      }
+    }
+
+    loadProgress();
+    setInterval(loadProgress, CONFIG.refreshMs);
+  </script>
+</body>
+</html>
